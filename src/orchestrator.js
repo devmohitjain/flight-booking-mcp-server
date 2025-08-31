@@ -71,44 +71,52 @@ async function askAI(userQuery) {
 
     // Check if the LLM wants to call a tool
     if (responseMessage.tool_calls) {
-        console.log('🤖 AI wants to call a tool...');
+        console.log(`🤖 AI wants to call ${responseMessage.tool_calls.length} tool(s)...`);
 
-        // In a real app, you might have multiple tool calls to handle
-        const toolCall = responseMessage.tool_calls[0];
-        const toolName = toolCall.function.name;
-        const toolArgs = JSON.parse(toolCall.function.arguments);
+        // Handle all tool calls
+        for (const toolCall of responseMessage.tool_calls) {
+            const toolName = toolCall.function.name;
+            const toolArgs = JSON.parse(toolCall.function.arguments);
 
-        console.log(`   - Tool: ${toolName}`);
-        console.log(`   - Arguments: ${JSON.stringify(toolArgs)}`);
+            console.log(`   - Tool: ${toolName}`);
+            console.log(`   - Tool Call ID: ${toolCall.id}`);
+            console.log(`   - Arguments: ${JSON.stringify(toolArgs)}`);
 
-        // --- Call your local MCP Server ---
-        console.log(`\n📞 Calling MCP Server at: ${MCP_SERVER_URL}`);
-        const toolResponse = await fetch(MCP_SERVER_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                tool_name: toolName,
-                parameters: toolArgs,
-            }),
-        });
+            // --- Call your local MCP Server ---
+            console.log(`\n📞 Calling MCP Server at: ${MCP_SERVER_URL}`);
+            const toolResponse = await fetch(MCP_SERVER_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    tool_name: toolName,
+                    parameters: toolArgs,
+                }),
+            });
 
-        const toolResult = await toolResponse.json();
-        console.log(`✅ MCP Server responded: ${JSON.stringify(toolResult)}`);
+            const toolResult = await toolResponse.json();
+            console.log(`✅ MCP Server responded: ${JSON.stringify(toolResult)}`);
 
-        // --- Second call to the LLM with the tool's result ---
+            // --- Add tool response to messages ---
+            const toolResponseMessage = {
+                tool_call_id: toolCall.id,
+                role: 'tool',
+                name: toolName,
+                content: JSON.stringify(toolResult.result || toolResult), // Send back the 'result' part or the whole response
+            };
+            console.log(`   - Tool Response Message: ${JSON.stringify(toolResponseMessage)}`);
+            messages.push(toolResponseMessage);
+        }
+        // , {
+        //     role: 'system',
+        //     content: prompt(),
+        // }
         messages.push({
-            tool_call_id: toolCall.id,
-            role: 'tool',
-            name: toolName,
-            content: JSON.stringify(toolResult.result), // Send back the 'result' part
-        }
-        , {
-            role: 'system',
-            content: prompt(),
-        }
-        );
+                role: 'system',
+                content: prompt(),
+            })
 
         console.log('\n🤖 Sending tool result back to AI for final answer...');
+        console.log('📋 Final messages array:', JSON.stringify(messages, null, 2));
 
         const finalResponse = await c.chat.completions.create({
             model: modelName,
@@ -132,7 +140,7 @@ async function main() {
     // Make sure your server.js is running in another terminal before running this.
 
     // await askAI("How many leaves does employee EMP101 have?");
-    await askAI("Show me the business clas flight with one stop from Kolkata & Chennai.");
+    await askAI("Show me the busines cla flight with one stop from Kolkata to Chennai one way for 2025-09-01.");
 
     console.log('\n-----------------------------------\n');
 

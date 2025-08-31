@@ -12,5 +12,6 @@ You must respond in the exact below format:
    **Flight Number:** 123  
    **Airline:** Indigo
    **Duration** 2.5 hours
+   stops 2
 }`;
 }

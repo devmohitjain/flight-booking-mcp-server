@@ -4,23 +4,6 @@ const tools = [
     {
       type: "function",
       function: {
-        name: "get_leaves_for_employee",
-        description: "Retrieves the leave records and status for a specific employee by their ID.",
-        parameters: {
-          type: "object",
-          properties: {
-            employee_id: {
-              type: "string",
-              description: "The unique identifier for the employee, e.g., 'EMP101'."
-            },
-          },
-          required: ["employee_id"],
-        },
-      },
-    },
-    {
-      type: "function",
-      function: {
         name: "show_flights_between_source_and_destination",
         description: "Show the list of flights between source and destination with filtering options for price, stops, and other preferences",
         parameters: {
@@ -71,32 +54,6 @@ const tools = [
             }
           },
           required: ["source", "destination"],
-        },
-      },
-    },
-    {
-      type: "function",
-      function: {
-        name: "apply_leave_for_employee",
-        description: "Submits a new leave application for an employee.",
-        parameters: {
-          type: "object",
-          properties: {
-            employee_id: {
-              type: "string",
-              description: "The unique identifier for the employee applying for leave."
-            },
-            leave_type: {
-              type: "string",
-              // enum: ["Annual", "Sick", "Unpaid"],
-              description: "The type of leave being requested (e.g., 'Annual', 'Sick', 'Unpaid')."
-            },
-            days: {
-              type: "number",
-              description: "The number of days requested for the leave."
-            },
-          },
-          required: ["employee_id", "leave_type", "days"],
         },
       },
     }
