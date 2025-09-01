@@ -53,7 +53,7 @@ const tools = [
               description: "Whether to show flights with flexible dates (±3 days) around the specified date."
             }
           },
-          required: ["source", "destination"],
+          required: ["source", "destination", "date"],
         },
       },
     }

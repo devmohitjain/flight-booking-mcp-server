@@ -3,49 +3,23 @@ require('dotenv').config();
 const OpenAI = require('openai');
 const tools = require('./tools');
 const prompt = require('./prompt')
+const readline = require('readline');
 
-// Configure client for either Azure OpenAI or OpenAI
+const readlinePrompt = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+});
+
 
 const endpoint = (process.env.AZURE_OPENAI_ENDPOINT || '').replace(/\/+$/, '');
 const deployment = process.env.AZURE_OPENAI_DEPLOYMENT;
 const baseURL = `${endpoint}/openai/deployments/${deployment}`;
-console.log("process.env.OPENAI_API_KEY", process.env.OPENAI_API_KEY);
 const c = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
     baseURL,
     defaultQuery: { 'api-version': process.env.AZURE_OPENAI_API_VERSION || '2024-10-01-preview' },
     defaultHeaders: { 'api-key': process.env.OPENAI_API_KEY }
 });
-
-
-// function createClient() {
-//     const {
-//         AZURE_OPENAI_API_KEY,
-//         AZURE_OPENAI_ENDPOINT,
-//         AZURE_OPENAI_DEPLOYMENT,
-//         AZURE_OPENAI_API_VERSION,
-//         OPENAI_API_KEY,
-//     } = process.env;
-
-//     // Prefer Azure configuration if present
-//     if (AZURE_OPENAI_API_KEY && AZURE_OPENAI_ENDPOINT && AZURE_OPENAI_DEPLOYMENT) {
-//         return new OpenAI({
-//             apiKey: AZURE_OPENAI_API_KEY,
-//             baseURL: `${AZURE_OPENAI_ENDPOINT.replace(/\/$/, '')}/openai/deployments/${AZURE_OPENAI_DEPLOYMENT}`,
-//             defaultQuery: { 'api-version': AZURE_OPENAI_API_VERSION || '2024-10-01-preview' },
-//             defaultHeaders: { 'api-key': AZURE_OPENAI_API_KEY },
-//         });
-//     }
-
-//     // Fallback to standard OpenAI
-//     if (OPENAI_API_KEY) {
-//         return new OpenAI({ apiKey: OPENAI_API_KEY });
-//     }
-
-//     throw new Error('Missing API configuration. Set Azure envs or OPENAI_API_KEY.');
-// }
-
-// const openai = createClient();
 
 // The address of your running MCP server
 const MCP_SERVER_URL = 'http://localhost:3000/mcp-api/v1/tool_dispatch';
@@ -71,19 +45,19 @@ async function askAI(userQuery) {
 
     // Check if the LLM wants to call a tool
     if (responseMessage.tool_calls) {
-        console.log(`🤖 AI wants to call ${responseMessage.tool_calls.length} tool(s)...`);
+        // console.log(`🤖 AI wants to call ${responseMessage.tool_calls.length} tool(s)...`);
 
         // Handle all tool calls
         for (const toolCall of responseMessage.tool_calls) {
             const toolName = toolCall.function.name;
             const toolArgs = JSON.parse(toolCall.function.arguments);
 
-            console.log(`   - Tool: ${toolName}`);
-            console.log(`   - Tool Call ID: ${toolCall.id}`);
+            // console.log(`   - Tool: ${toolName}`);
+            // console.log(`   - Tool Call ID: ${toolCall.id}`);
             console.log(`   - Arguments: ${JSON.stringify(toolArgs)}`);
 
             // --- Call your local MCP Server ---
-            console.log(`\n📞 Calling MCP Server at: ${MCP_SERVER_URL}`);
+            // console.log(`\n📞 Calling MCP Server at: ${MCP_SERVER_URL}`);
             const toolResponse = await fetch(MCP_SERVER_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -94,7 +68,7 @@ async function askAI(userQuery) {
             });
 
             const toolResult = await toolResponse.json();
-            console.log(`✅ MCP Server responded: ${JSON.stringify(toolResult)}`);
+            // console.log(`✅ MCP Server responded: ${JSON.stringify(toolResult)}`);
 
             // --- Add tool response to messages ---
             const toolResponseMessage = {
@@ -103,7 +77,7 @@ async function askAI(userQuery) {
                 name: toolName,
                 content: JSON.stringify(toolResult.result || toolResult), // Send back the 'result' part or the whole response
             };
-            console.log(`   - Tool Response Message: ${JSON.stringify(toolResponseMessage)}`);
+            // console.log(`   - Tool Response Message: ${JSON.stringify(toolResponseMessage)}`);
             messages.push(toolResponseMessage);
         }
         // , {
@@ -111,12 +85,12 @@ async function askAI(userQuery) {
         //     content: prompt(),
         // }
         messages.push({
-                role: 'system',
-                content: prompt(),
-            })
+            role: 'system',
+            content: prompt(),
+        })
 
-        console.log('\n🤖 Sending tool result back to AI for final answer...');
-        console.log('📋 Final messages array:', JSON.stringify(messages, null, 2));
+        // console.log('\n🤖 Sending tool result back to AI for final answer...');
+        // console.log('📋 Final messages array:', JSON.stringify(messages, null, 2));
 
         const finalResponse = await c.chat.completions.create({
             model: modelName,
@@ -124,23 +98,51 @@ async function askAI(userQuery) {
         });
 
         const finalMessage = finalResponse.choices[0].message.content;
-        console.log(`\n✅ AI Final Answer: ${finalMessage}`);
+        console.log(`\n✅ Below are the flight details: ${finalMessage}`);
         return finalMessage;
 
     } else {
         // The LLM answered directly without a tool
         const finalMessage = responseMessage.content;
-        console.log(`\n✅ AI Final Answer: ${finalMessage}`);
+        console.log(`\n✅ Below are the flight details: ${finalMessage}`);
         return finalMessage;
     }
 }
 
+function askQuestion() {
+    readlinePrompt.question('💬 Your question: ', async (input) => {
+        const question = input.trim();
+
+        if (question.toLowerCase() === 'quit' || question.toLowerCase() === 'exit') {
+            readlinePrompt.close();
+            return;
+        }
+
+        if (question === '') {
+            console.log('Please enter a question.\n');
+            askQuestion();
+            return;
+        }
+
+        try {
+            const result = await askAI(question);
+
+
+        } catch (error) {
+            console.error('❌ Error:', error.message);
+            console.log('');
+        }
+
+        askQuestion();
+    });
+}
+
 // --- Let's run some examples! ---
 async function main() {
-    // Make sure your server.js is running in another terminal before running this.
 
-    // await askAI("How many leaves does employee EMP101 have?");
-    await askAI("Show me the busines cla flight with one stop from Kolkata to Chennai one way for 2025-09-01.");
+    askQuestion();
+
+    // await askAI("i want to fly in business class from Kolkata to Chennai one way for 2025-09-01.");
 
     console.log('\n-----------------------------------\n');
 

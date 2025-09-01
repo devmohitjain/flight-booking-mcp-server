@@ -41,7 +41,7 @@ const getLeavesForEmployee = async ({ employee_id }) => {
 };
 
 const show_flights_between_source_and_destination = async({source, destination,sort_by,stops_preference,cabin_class, ...rest}) => {
-    console.log("rest", rest);
+    console.log("Here API call will be done with parameters and will return the result");
     return [{
         "flightNo": "123",
         "flightName": "Indigo",
